@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en-us">
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<title>CHIP8-EMU</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="icon" type="image/x-icon" href="./assets/svgs/favicon.svg">
+		<link rel='stylesheet' href='./assets/style.css' >
+	</head>
+		<body>
+			<div>
+				<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+				<textarea id="console" rows="16" disabled></textarea>
+			</div>
+			<script async type="text/javascript" src="./assets/chip8.js"></script>
+			<div>
+				<p class="text_1" style="font-size: 16px;">CHIP8-EMU-Web</p>
+				<div>
+					<a href="https://github.com/beddinao/chip-8-emulator" target="_blank" ><p class="text_1" style="font-size: 13px;">Original C Project</p></a>
+				</div>
+				<div>
+					<p class="text_3" style="font-size: 11px;">select program to load from collection: </p>
+					<button id="pr_btn">BLITZ.ch8</button>
+					<button id="pr_btn">Brix.ch8</button>
+					<button id="pr_btn">IBM_logo.ch8</button>
+					<button id="pr_btn">Chip8_Picture.ch8</button>
+					<button id="pr_btn">Chip8_emu_logo.ch8</button>
+				</div>
+				<div>
+					<p class="text_3" style="font-size: 11px;">upload a program to memory (only .ch8): </p>
+					<input type="file" accept=".ch8" id="input" />
+					<div>
+						<p class="text_3" style="font-size: 11px;">clear program from memory: </p>
+						<button id="clr_button">CLR/RST</button>
+					</div>
+				</div>
+			</div>
+			<script async type="text/javascript">
+				var output_elem = document.getElementById("console");
+				window.onload = e => {
+					if (output_elem)
+						output_elem.value = "";
+				}
+				var Module = {
+					print(...args) {
+						if (output_elem) {
+							var text = args.join(' ');
+							output_elem.value += text + "\n";
+							output_elem.scrollTop = output_elem.scrollHeight;
+						}
+					},
+					onRuntimeInitialized: function() {
+						const exec_clr = Module.cwrap('exec_clr', null);
+						const exec_ldp = Module.cwrap('exec_ldp', null, ['array', 'number']);
+						let input = document.getElementById("input"),
+						pr_btns = document.querySelectorAll("#pr_btn"),
+						clr_btn = document.getElementById("clr_button");
+						if (input) {
+							input.onchange = e => {
+								const reader = new FileReader();
+								reader.onloadend = e => {
+									let arr = new Uint8Array(e.target.result);
+									exec_ldp(arr, arr.length);
+								}
+								reader.readAsArrayBuffer(e.target.files[0]);
+							}
+						}
+						if (clr_btn) clr_btn.onclick = () => exec_clr();
+						if (pr_btns)
+							pr_btns.forEach(btn => {
+								btn.onclick = e => {
+									let target = e.target.textContent||e.target.innerText;
+									const req = new XMLHttpRequest();
+									req.open("GET", "programs/" + target, true);
+									req.responseType = "arraybuffer";
+									req.onload = e => {
+										if (e.target.status == 200) {
+											const arrayBuffer = req.response;
+											if (arrayBuffer) {
+												const byte_array = new Uint8Array(arrayBuffer);
+												console.log(byte_array);
+												exec_ldp(byte_array, byte_array.length);
+											}
+										}
+										else {
+											if (output_elem) {
+												output_elem.value += "can't load file\n";
+												output_elem.scrollTop = output_elem.scrollHeight;
+											}
+										}
+									}
+									req.send();
+								}
+							})
+				
+					}
+				}
+			</script>
+		</body>
+</html>
